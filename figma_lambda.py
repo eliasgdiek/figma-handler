@@ -1,32 +1,25 @@
-from dotenv import load_dotenv
-from os.path import join, dirname
-import os
+import base64
 import string
 import random
-import requests
 import urllib3
 import sqlite3
 from sqlite3 import Error
+import os
 import json
 
-dotenv_path = join(dirname(__file__), '.env')
-load_dotenv(dotenv_path)
-
+DB_NAME = './tmp/fabric.db'
 http = urllib3.PoolManager()
-
-DB_NAME = 'fabric.db'
-
-# http://localhost:3000/api/callback?code=2IHhCieGwQ24SmoIqq1W6cCIj&state=9F181CQ1HO
 
 class Figma():
     def __init__(self):
-        self.appName = os.environ.get('FIGMA_APP_NAME')
-        self.clientId = os.environ.get('FIGMA_CLIENT_ID')
-        self.clientSecret = os.environ.get('FIGMA_CLIENT_SECRET')
+        print('[app]', os.environ['FIGMA_APP_NAME'])
+        self.appName = os.environ['FIGMA_APP_NAME']
+        self.clientId = os.environ['FIGMA_CLIENT_ID']
+        self.clientSecret = os.environ['FIGMA_CLIENT_SECRET']
         self.baseURL = 'https://api.figma.com/v1'
         self.state = str(''.join(random.choices(string.ascii_uppercase + string.digits, k = 10)))
         self.scope = 'file_read'
-        self.redirectUri = 'http://localhost:3000/figma'
+        self.redirectUri = 'http://localhost:3000/api/callback'
         self.authData = None
         self.userData = None
         self.userId = None
@@ -124,8 +117,9 @@ class Figma():
     def getUserData(self):
         try:
             header = { "Authorization": "Bearer " + self.authData['access_token'] }
-            res2 = requests.get(self.baseURL + '/me', headers = header)
-            userData = res2.json()
+            res = http.request('GET', self.baseURL + '/me', headers=header, retries = False)
+            userData = json.loads(res.data.decode('UTF-8'))
+            print('[userData]', userData)
             return userData
         except:
             return False
@@ -135,7 +129,6 @@ class Figma():
             authUrl = 'https://www.figma.com/api/oauth/token?client_id='+ self.clientId +'&client_secret='+ self.clientSecret +'&redirect_uri='+ self.redirectUri +'&code='+ code +'&grant_type=authorization_code'
             res = http.request('POST', authUrl, retries = False)
             data = json.loads(res.data.decode('UTF-8'))
-            print('[data]', data)
             data['state'] = self.state
             self.authData = data
             userData = self.getUserData()
@@ -158,14 +151,13 @@ class Figma():
             print(message)
             return None
 
-
     def fetchProjects(self, teamId):
         try:
             header = { "Authorization": "Bearer " + self.authData['access_token'] }
             url = self.baseURL + '/teams/'+ teamId +'/projects'
             res = http.request('GET', url, headers=header, retries = False)
             projectData = json.loads(res.data.decode('UTF-8'))
-            print('[res]', projectData)
+            print('[projectData]', projectData)
 
             return projectData
         except Exception as ex:
@@ -178,8 +170,9 @@ class Figma():
         try:
             header = { "Authorization": "Bearer " + self.authData['access_token'] }
             url = self.baseURL + '/projects/'+ projectId +'/files'
-            res = requests.get(url, headers=header)
-            filesData = res.json()
+            res = http.request('GET', url, headers=header, retries = False)
+            filesData = json.loads(res.data.decode('UTF-8'))
+            print('[filesData]', filesData)
             return filesData
         except Exception as ex:
             template = "An exception of type {0} occurred. Arguments:\n{1!r}"
@@ -193,7 +186,6 @@ class Figma():
             projectData = self.fetchProjects(teamId)
             teamName = projectData['name']
             projects = projectData['projects']
-            print('[projectData]', projectData)
             files = []
 
             if len(projects) == 0:
@@ -223,6 +215,7 @@ class Figma():
                     return None
 
                 for file in filesData['files']:
+                    files.append(file)
                     try:
                         sql = "INSERT INTO files (user_id, project_id, key, name, thumbnail_url, last_modified) VALUES (?, ?, ?, ?, ?, ?)"
                         val = (self.userId, project['id'], file['key'], file['name'], file['thumbnail_url'], file['last_modified'])
@@ -239,6 +232,7 @@ class Figma():
                 
             
             conn.close()
+            return files
             
         except Exception as ex:
             template = "An exception of type {0} occurred. Arguments:\n{1!r}"
