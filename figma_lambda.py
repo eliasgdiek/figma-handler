@@ -19,7 +19,7 @@ class Figma():
         self.baseURL = 'https://api.figma.com/v1'
         self.state = str(''.join(random.choices(string.ascii_uppercase + string.digits, k = 10)))
         self.scope = 'file_read'
-        self.redirectUri = 'http://localhost:3000/api/callback'
+        self.redirectUri = 'https://fabric-figma.vercel.app/figma'
         self.authData = None
         self.userData = None
         self.userId = None
@@ -124,12 +124,14 @@ class Figma():
         except:
             return False
 
-    def authenticate(self, code):
+    def authenticate(self, code, redirectUri):
         try:
-            authUrl = 'https://www.figma.com/api/oauth/token?client_id='+ self.clientId +'&client_secret='+ self.clientSecret +'&redirect_uri='+ self.redirectUri +'&code='+ code +'&grant_type=authorization_code'
+            _redirectURI = redirectUri if redirectUri else self.redirectUri
+            authUrl = 'https://www.figma.com/api/oauth/token?client_id='+ self.clientId +'&client_secret='+ self.clientSecret +'&redirect_uri='+ _redirectURI +'&code='+ code +'&grant_type=authorization_code'
             res = http.request('POST', authUrl, retries = False)
             data = json.loads(res.data.decode('UTF-8'))
             data['state'] = self.state
+            print('[dddddd]', data)
             self.authData = data
             userData = self.getUserData()
             self.userData = userData
