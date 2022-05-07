@@ -1,4 +1,5 @@
 from figma import Figma
+import json
 
 def migrate():
     try:
@@ -48,15 +49,27 @@ def fetchAll():
     try:
         figma = Figma()
         code = figma.getCode()
-        data = figma.authenticate(code)
-        print('[data]', data)
-        
-        # teamId = '1103011244724301023'
-        # figma.fetchFiles(teamId)
+        userData = figma.authenticate(code)
+       
+        teamId = '1103011244724301023'
+        files, projectData = figma.fetchFiles(teamId)
+
+        userId = userData['user_id']
+
+        with open("user-"+ str(userId) +".json", "w") as f:
+            json.dump(userData, f)
+
+        with open("files-"+ str(userId) +".json", "w") as f:
+            json.dump(files, f)
+
+        with open("projects-"+ str(userId) +".json", "w") as f:
+            json.dump(projectData, f)
 
         return 'success'
-    except:
-        print('[ERROR in fetchAll]')
+    except Exception as ex:
+        template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+        message = template.format(type(ex).__name__, ex.args)
+        print('[Error fetchAll]', message)
         return 'failed'
 
 if __name__ == '__main__':

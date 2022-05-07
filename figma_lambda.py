@@ -7,7 +7,7 @@ from sqlite3 import Error
 import os
 import json
 
-DB_NAME = './tmp/fabric.db'
+DB_NAME = '/tmp/fabric.db'
 http = urllib3.PoolManager()
 
 class Figma():
