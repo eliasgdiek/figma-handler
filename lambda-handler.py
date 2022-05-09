@@ -1,26 +1,32 @@
 import json
 from figma import Figma
+import boto3
+import os
 
 def lambda_handler(event, context):
     try:
-        # figma = Figma()
-        # figma.createDB()
-        # figma.createTables()
-        # return {
-        #     'statusCode': 200,
-        #     'body': json.dumps('ok')
-        # }
-        
-        print('[event]', event)
         params = json.loads(event["body"])
         code = params["code"]
         teamId = params["team_id"]
         redirectUri = params["redirect_uri"]
-        print('[params]', params)
+        print('[code]', code)
 
         figma = Figma()
-        figma.authenticate(code, redirectUri)
-        files = figma.fetchFiles(teamId)
+        userData = figma.authenticate(code, redirectUri)
+        print('[userData]', userData)
+        files, projectData = figma.fetchFiles(teamId)
+
+        userId = userData['user_id']
+        bucket_name = os.environ['BUCKET_NAME']
+
+        s3_path_for_users = "data/" + "user-"+ str(userId) +".json"
+        s3_path_for_files = "data/" + "files-"+ str(userId) +".json"
+        s3_path_for_projects = "data/" + "projects-"+ str(userId) +".json"
+
+        s3 = boto3.resource("s3")
+        s3.Bucket(bucket_name).put_object(Key=s3_path_for_users, Body=json.dumps(userData))
+        s3.Bucket(bucket_name).put_object(Key=s3_path_for_files, Body=json.dumps(files))
+        s3.Bucket(bucket_name).put_object(Key=s3_path_for_projects, Body=json.dumps(projectData))
         
         return {
             'statusCode': 200,
